@@ -1,0 +1,45 @@
+[project]
+name = "kg-rag"
+version = "0.1.0"
+description = "算法知识问答系统 — KG + RAG + Agentic"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # Agent 框架
+    "langgraph>=1.0.6,<2.0.0",
+    "langchain-core>=1.2.7,<2.0.0",
+    "langchain>=1.2.7,<2.0.0",
+    "langchain-openai>=1.1.8,<2.0.0",
+    # 图数据库
+    "neo4j>=5.0.0,<7.0.0",
+    # 向量 / 数值
+    "numpy>=1.24.0,<3.0.0",
+    "nano-vectordb",
+    # 数据模型 / 工具
+    "pydantic>=2.0.0,<3.0.0",
+    "tiktoken",
+    "aiohttp",
+    "tenacity",
+    "python-dotenv",
+    "firecrawl-py",
+    # API server
+    "fastapi>=0.116.0,<1.0.0",
+    "uvicorn>=0.35.0,<1.0.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-jose[cryptography]>=3.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+kg-rag = "kg_rag.main:main"

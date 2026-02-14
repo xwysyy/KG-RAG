@@ -1,0 +1,36 @@
+services:
+  neo4j:
+    image: neo4j:5.26
+    env_file: .env
+    container_name: kg-rag-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD}
+    volumes:
+      - .docker/neo4j/data:/data
+
+  backend:
+    build: .
+    container_name: kg-rag-backend
+    env_file: .env
+    ports:
+      - "8765:8765"
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - neo4j
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8765
+    container_name: kg-rag-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend

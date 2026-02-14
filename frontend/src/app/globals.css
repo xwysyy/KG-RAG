@@ -1,0 +1,632 @@
+/* highlight.js base theme (light) */
+@import "highlight.js/styles/github.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Remove default focus box-shadows */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    box-shadow: none !important;
+  }
+
+  /* Set default outline color to match brand instead of browser blue */
+  * {
+    outline-color: hsl(var(--primary));
+  }
+
+  :root {
+    /* App-specific color variables — sky-blue theme */
+    --color-primary: #49b1f5;
+    --color-primary-hover: #1892ff;
+    --color-primary-dark: #0c82e9;
+    --color-user-message: #49b1f5;
+    --color-user-message-bg: linear-gradient(135deg, #49b1f5 0%, #62bfff 100%);
+    --color-avatar-bg: #e0f0ff;
+    --color-secondary: #49b1f5;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-background: #f5f7fa;
+    --color-subagent-hover: #d4eafc;
+    --color-surface: rgba(255, 255, 255, 0.75);
+    --color-border: rgba(146, 196, 226, 0.5);
+    --color-border-light: rgba(146, 196, 226, 0.25);
+    --color-text-primary: #111827;
+    --color-text-secondary: #6b7280;
+    --color-text-tertiary: #9ca3af;
+    --color-file-button: #ffffff;
+    --color-file-button-hover: #e5e7eb;
+    --color-glass: rgba(255, 255, 255, 0.75);
+    --color-shadow: rgba(35, 91, 127, 0.12);
+
+    /* Spacing variables */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+
+    /* Font family variables */
+    --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
+    --font-family-mono: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono",
+      Consolas, "Courier New", monospace;
+
+    /* Font size variables */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+
+    /* Font weight variables */
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+
+    /* Line height variables */
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.75;
+
+    /* Border radius variables */
+    --radius-sm: 0.25rem;
+    --radius-md: 0.375rem;
+    --radius-lg: 0.5rem;
+    --radius-full: 9999px;
+
+    /* Shadow variables */
+    --shadow-lg: 0 10px 15px -3px rgba(35, 91, 127, 0.1),
+      0 4px 6px -2px rgba(35, 91, 127, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(35, 91, 127, 0.1),
+      0 10px 10px -5px rgba(35, 91, 127, 0.04);
+
+    /* Transition variables */
+    --transition-base: 200ms ease;
+
+    /* Layout variables */
+    --sidebar-width: 320px;
+    --sidebar-collapsed-width: 60px;
+    --header-height: 56px;
+    --panel-width: 40vw;
+    --chat-max-width: 900px;
+
+    /* Status colors */
+    --status-active: 205 90% 63%;
+    --status-completed: 152 60% 45%;
+    --status-pending: 220 10% 60%;
+    --status-error: 0 72% 51%;
+    --status-warning: 38 92% 50%;
+
+    /* Tailwind/Radix UI component variables — light mode */
+    --radius: 0.5rem;
+    --background: 216 28% 97%;
+    --foreground: 220 13% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 13% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 13% 13%;
+    --primary: 205 90% 63%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 216 20% 93%;
+    --secondary-foreground: 220 13% 13%;
+    --muted: 216 20% 95%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 216 20% 95%;
+    --accent-foreground: 220 13% 13%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 205 40% 82%;
+    --input: 205 40% 82%;
+    --ring: 205 90% 63%;
+    --sidebar: 216 20% 95%;
+    --chart-1: 205 90% 63%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    /* App-specific color variables — dark mode */
+    --color-primary: #7fcfff;
+    --color-primary-hover: #99daff;
+    --color-primary-dark: #62bfff;
+    --color-user-message: #7fcfff;
+    --color-user-message-bg: linear-gradient(135deg, #2080c0 0%, #3090d0 100%);
+    --color-avatar-bg: #1c3a55;
+    --color-secondary: #7fcfff;
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-error: #f87171;
+    --color-background: #0f1117;
+    --color-subagent-hover: #1c3a55;
+    --color-surface: rgba(30, 35, 50, 0.8);
+    --color-border: rgba(100, 160, 220, 0.25);
+    --color-border-light: rgba(100, 160, 220, 0.15);
+    --color-text-primary: #f3f4f6;
+    --color-text-secondary: #9ca3af;
+    --color-text-tertiary: #6b7280;
+    --color-file-button: #1e2332;
+    --color-file-button-hover: #2a3045;
+    --color-glass: rgba(30, 35, 50, 0.8);
+    --color-shadow: rgba(0, 0, 0, 0.3);
+
+    /* Status colors */
+    --status-active: 207 90% 75%;
+    --status-completed: 160 60% 45%;
+    --status-pending: 220 10% 50%;
+    --status-error: 0 63% 71%;
+    --status-warning: 38 92% 60%;
+
+    /* Tailwind/Radix UI component variables — dark mode */
+    --radius: 0.5rem;
+    --background: 225 25% 7%;
+    --foreground: 220 13% 95%;
+    --card: 225 22% 12%;
+    --card-foreground: 220 13% 95%;
+    --popover: 225 22% 12%;
+    --popover-foreground: 220 13% 95%;
+    --primary: 207 90% 75%;
+    --primary-foreground: 225 25% 7%;
+    --secondary: 225 18% 18%;
+    --secondary-foreground: 220 13% 95%;
+    --muted: 225 18% 15%;
+    --muted-foreground: 220 9% 70%;
+    --accent: 225 18% 18%;
+    --accent-foreground: 220 13% 95%;
+    --destructive: 0 63% 71%;
+    --destructive-foreground: 225 25% 7%;
+    --border: 220 20% 22%;
+    --input: 220 20% 22%;
+    --ring: 207 90% 75%;
+    --sidebar: 225 22% 10%;
+    --chart-1: 207 90% 75%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  background-color: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-text-primary);
+}
+
+h1 {
+  font-size: 1.875rem;
+}
+h2 {
+  font-size: 1.5rem;
+}
+h3 {
+  font-size: 1.25rem;
+}
+h4 {
+  font-size: 1.125rem;
+}
+h5 {
+  font-size: 1rem;
+}
+h6 {
+  font-size: 0.875rem;
+}
+
+p {
+  margin-bottom: 1rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: opacity 200ms ease;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+code {
+  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
+    "Courier New", monospace;
+  font-size: 0.9em;
+  padding: 0.125em 0.25em;
+  background-color: var(--color-surface);
+  border-radius: 0.25rem;
+}
+
+pre {
+  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
+    "Courier New", monospace;
+  font-size: 0.875rem;
+  line-height: 1.75;
+  padding: 1rem;
+  background-color: var(--color-surface);
+  border-radius: 0.375rem;
+  overflow-x: auto;
+
+  code {
+    padding: 0;
+    background-color: transparent;
+  }
+}
+
+ul,
+ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+li {
+  margin-bottom: 0.25rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Optimization Window animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom scrollbar styles */
+.scrollbar-pretty {
+  overflow-y: scroll;
+}
+
+.scrollbar-pretty::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-pretty::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-pretty::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 9999px;
+}
+
+.scrollbar-pretty::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+/* Global diff highlighting styles */
+.word-added {
+  background-color: rgba(46, 160, 67, 0.4);
+  color: #ffffff;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.word-removed {
+  background-color: rgba(248, 81, 73, 0.4);
+  color: #ffffff;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+  text-decoration: line-through;
+  text-decoration-color: #f85149;
+}
+
+/* Agent process animations */
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+.animate-cursor-blink {
+  animation: cursor-blink 1s step-end infinite;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out both;
+}
+
+/* ── Utility classes ── */
+
+@layer components {
+  .glass-card {
+    @apply border border-border/50 bg-card/80 shadow-sm backdrop-blur-sm;
+  }
+  .transition-expand {
+    @apply transition-all duration-300 ease-in-out;
+  }
+}
+
+/* ── highlight.js overrides ── */
+
+/* Make hljs background transparent so our card styles control it */
+pre code.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Dark mode token colors (github-dark theme values) */
+.dark .hljs {
+  color: #c9d1d9;
+}
+.dark .hljs-doctag,
+.dark .hljs-keyword,
+.dark .hljs-meta .hljs-keyword,
+.dark .hljs-template-tag,
+.dark .hljs-template-variable,
+.dark .hljs-type,
+.dark .hljs-variable.language_ {
+  color: #ff7b72;
+}
+.dark .hljs-title,
+.dark .hljs-title.class_,
+.dark .hljs-title.class_.inherited__,
+.dark .hljs-title.function_ {
+  color: #d2a8ff;
+}
+.dark .hljs-attr,
+.dark .hljs-attribute,
+.dark .hljs-literal,
+.dark .hljs-meta,
+.dark .hljs-number,
+.dark .hljs-operator,
+.dark .hljs-selector-attr,
+.dark .hljs-selector-class,
+.dark .hljs-selector-id,
+.dark .hljs-variable {
+  color: #79c0ff;
+}
+.dark .hljs-meta .hljs-string,
+.dark .hljs-regexp,
+.dark .hljs-string {
+  color: #a5d6ff;
+}
+.dark .hljs-built_in,
+.dark .hljs-symbol {
+  color: #ffa657;
+}
+.dark .hljs-code,
+.dark .hljs-comment,
+.dark .hljs-formula {
+  color: #8b949e;
+}
+.dark .hljs-name,
+.dark .hljs-quote,
+.dark .hljs-selector-pseudo,
+.dark .hljs-selector-tag {
+  color: #7ee787;
+}
+.dark .hljs-subst {
+  color: #c9d1d9;
+}
+.dark .hljs-section {
+  color: #1f6feb;
+  font-weight: 700;
+}
+.dark .hljs-bullet {
+  color: #f2cc60;
+}
+.dark .hljs-emphasis {
+  color: #c9d1d9;
+  font-style: italic;
+}
+.dark .hljs-strong {
+  color: #c9d1d9;
+  font-weight: 700;
+}
+.dark .hljs-addition {
+  color: #aff5b4;
+  background-color: #033a16;
+}
+.dark .hljs-deletion {
+  color: #ffdcd7;
+  background-color: #67060c;
+}
+
+/* md-editor-rt preview: keep chat background consistent */
+.md-editor.md-editor-previewOnly {
+  background-color: transparent;
+}
+
+.md-editor.md-editor-previewOnly .md-editor-preview {
+  background-color: transparent;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* md-editor-rt code blocks: align with app UI (no macOS "traffic lights") */
+.md-editor.md-editor-previewOnly .md-editor-code {
+  border: 1px solid hsl(var(--border) / 0.55);
+  border-radius: calc(var(--radius) + 2px);
+  overflow: hidden;
+  background: hsl(var(--card) / 0.65);
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.06);
+}
+
+.md-editor.md-editor-previewOnly .md-editor-code-head {
+  display: flex;
+  align-items: center;
+  padding: 0.35rem 0.5rem;
+  background: hsl(var(--muted) / 0.55);
+  border-bottom: 1px solid hsl(var(--border) / 0.55);
+}
+
+.md-editor.md-editor-previewOnly summary.md-editor-code-head {
+  list-style: none;
+}
+
+.md-editor.md-editor-previewOnly summary.md-editor-code-head::-webkit-details-marker {
+  display: none;
+}
+
+.md-editor.md-editor-previewOnly .md-editor-code-flag {
+  display: none;
+}
+
+.md-editor.md-editor-previewOnly .md-editor-code-action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.md-editor.md-editor-previewOnly .md-editor-code-lang {
+  margin-right: auto;
+  font-family: var(--font-family-mono);
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.md-editor.md-editor-previewOnly .md-editor-copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  border: 1px solid hsl(var(--border) / 0.55);
+  background: hsl(var(--background) / 0.45);
+  border-radius: 0.375rem;
+  padding: 0.15rem 0.45rem;
+}
+
+.md-editor.md-editor-previewOnly .md-editor-copy-button:hover {
+  background: hsl(var(--background) / 0.75);
+  color: hsl(var(--foreground));
+}
+
+.md-editor.md-editor-previewOnly .md-editor-code pre {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: transparent;
+}
+
+.md-editor.md-editor-previewOnly .md-editor-code pre code {
+  background: transparent;
+  font-family: var(--font-family-mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.md-editor.md-editor-previewOnly .md-editor-code-block {
+  display: block;
+}

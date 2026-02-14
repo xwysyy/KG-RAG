@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "kg_rag": "./src/kg_rag/server.py:create_graph"
+  },
+  "env": ".env"
+}
