@@ -8,6 +8,92 @@ KG-RAG 是一个面向算法/竞赛知识的问答系统，采用 **Knowledge Gr
 - **FastAPI + SSE**：提供后端 API 与流式输出
 - **Next.js (App Router)**：前端 UI（`frontend/`）
 
+## 系统架构
+
+```mermaid
+flowchart TD
+    subgraph Frontend["Frontend · Next.js App Router"]
+        ChatUI(["Chat Interface<br/>Markdown / Mermaid / LaTeX"])
+        GraphUI(["Knowledge Graph Viewer"])
+    end
+
+    ChatUI -- "SSE Stream" --> SVC
+    GraphUI -- "REST" --> REST
+
+    subgraph Backend["Backend · FastAPI + SSE"]
+        SVC["ChatService<br/>ask_stream()"]
+        REST["Session / Auth / Graph APIs"]
+    end
+
+    SVC ==> AGENT
+    SVC -- "read" --> ProfileRead
+    SVC -. "对话后更新" .-> ProfileWrite
+
+    subgraph AGENT["Agent · LangGraph StateGraph"]
+        Plan["Plan Agent<br/>拆解子任务"]
+        Exec["Execute<br/>Sub-Agent x N 并行"]
+        Agg["Aggregate<br/>聚合结果"]
+        Judge{{"Judge<br/>充分性判断"}}
+        Resp["Respond<br/>生成最终回答"]
+
+        Plan ==> Exec ==> Agg ==> Judge
+        Judge -- "sufficient" --> Resp
+        Judge -. "re-plan" .-> Plan
+    end
+
+    Exec --> VS
+    Exec --> GQ
+    Exec --> WS
+
+    subgraph Tools["Tool Set"]
+        VS["vector_search<br/>语义检索"]
+        GQ["graph_query<br/>NL to Cypher"]
+        WS["web_search<br/>Firecrawl"]
+    end
+
+    subgraph Memory["Memory · User Profile"]
+        ProfileRead["read_profile()"]
+        ProfileWrite["Proposal Write<br/>extract / filter / apply"]
+    end
+
+    ProfileRead --> Neo4j
+    ProfileWrite --> Neo4j
+    VS --> NanoVec
+    GQ --> Neo4j
+
+    subgraph Storage["Storage Layer"]
+        Neo4j[("Neo4j<br/>知识图谱 + 用户画像")]
+        NanoVec[("NanoVectorDB<br/>向量索引")]
+        SQLite[("SQLite<br/>Session")]
+    end
+
+    REST --> SQLite
+
+    subgraph Ingest["Ingestion Pipeline"]
+        I1["Data Preprocess"] --> I2["Chunking<br/>tiktoken"]
+        I2 --> I3["LLM Extract<br/>实体 / 关系"]
+        I3 --> I4["Dedup<br/>Alias + LLM"]
+    end
+
+    I4 --> Neo4j
+    I4 --> NanoVec
+
+    classDef frontend fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
+    classDef backend fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef agent fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+    classDef tool fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+    classDef memory fill:#ccfbf1,stroke:#0d9488,color:#134e4a
+    classDef storage fill:#f1f5f9,stroke:#475569,color:#1e293b
+    classDef ingest fill:#fef3c7,stroke:#d97706,color:#78350f
+
+    class ChatUI,GraphUI frontend
+    class SVC,REST backend
+    class Plan,Exec,Agg,Judge,Resp agent
+    class VS,GQ,WS tool
+    class ProfileRead,ProfileWrite memory
+    class Neo4j,NanoVec,SQLite storage
+    class I1,I2,I3,I4 ingest
+```
 
 ## 快速开始（本地开发）
 
