@@ -236,8 +236,12 @@ async def _ingest(file_path: str) -> None:
     print(f"  → {len(chunks)} chunks")
 
     # Step 2: extract entities & relations
-    entities, relations = await extract_entities_and_relations(chunks)
+    entities, relations, failed_chunks = await extract_entities_and_relations(chunks)
     print(f"  → {len(entities)} entities, {len(relations)} relations")
+    if failed_chunks:
+        print(f"  ⚠ {len(failed_chunks)} chunks failed extraction:")
+        for fc in failed_chunks:
+            print(f"    - {fc['chunk_id']}: {fc['error']}")
 
     # Step 3: store
     vector_store, graph_store = await _init_stores()
@@ -338,6 +342,7 @@ async def _ingest_batch(dir_path: str) -> None:
         api_key=settings.reasoning_llm_api_key,
         base_url=settings.reasoning_llm_base_url,
         temperature=0,
+        request_timeout=settings.llm_request_timeout,
     )
     llm_sem = asyncio.Semaphore(settings.llm_concurrency)
     storage_sem = asyncio.Semaphore(settings.storage_concurrency)
@@ -357,13 +362,19 @@ async def _ingest_batch(dir_path: str) -> None:
             logger.info("  %s → %d chunks", path.name, len(chunks))
 
             # extract (shared llm & llm_sem)
-            entities, relations = await extract_entities_and_relations(
+            entities, relations, failed_chunks = await extract_entities_and_relations(
                 chunks, sem=llm_sem, llm=llm,
             )
             logger.info(
                 "  %s → %d entities, %d relations",
                 path.name, len(entities), len(relations),
             )
+            if failed_chunks:
+                logger.warning(
+                    "  %s: %d chunks failed extraction: %s",
+                    path.name, len(failed_chunks),
+                    ", ".join(fc["chunk_id"] for fc in failed_chunks),
+                )
 
             # store chunks (non-blocking: vector failure must not prevent graph writes)
             chunk_data = {

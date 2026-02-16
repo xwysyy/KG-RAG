@@ -1,7 +1,6 @@
 services:
   neo4j:
     image: neo4j:5.26
-    env_file: .env
     container_name: kg-rag-neo4j
     ports:
       - "7474:7474"

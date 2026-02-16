@@ -403,12 +403,15 @@ async def extract_entities_and_relations(
     *,
     sem: asyncio.Semaphore | None = None,
     llm: ChatOpenAI | None = None,
-) -> tuple[list[Entity], list[Relation]]:
+) -> tuple[list[Entity], list[Relation], list[dict]]:
     """Extract entities and relations from a list of text chunks via LLM.
 
     Uses up to ``settings.llm_concurrency`` parallel LLM calls.
     Accepts optional shared *sem* and *llm* for batch mode; creates its own
     when not provided (single-file backward compat).
+
+    Returns (entities, relations, failed_chunks) where *failed_chunks* is a
+    list of ``{"chunk_id": ..., "error": ...}`` dicts.
     """
     if llm is None:
         llm = ChatOpenAI(
@@ -416,6 +419,7 @@ async def extract_entities_and_relations(
             api_key=settings.reasoning_llm_api_key,
             base_url=settings.reasoning_llm_base_url,
             temperature=0,
+            request_timeout=settings.llm_request_timeout,
         )
     if sem is None:
         sem = asyncio.Semaphore(settings.llm_concurrency)
@@ -425,9 +429,11 @@ async def extract_entities_and_relations(
         return_exceptions=True,
     )
     # Filter out failed chunks
-    failed = [(chunks[i], r) for i, r in enumerate(results) if isinstance(r, Exception)]
-    for chunk, exc in failed:
-        logger.error("Chunk %s extraction failed: %s", chunk.id, exc)
+    failed_chunks: list[dict] = []
+    for i, r in enumerate(results):
+        if isinstance(r, Exception):
+            failed_chunks.append({"chunk_id": chunks[i].id, "error": str(r)})
+            logger.error("Chunk %s extraction failed: %s", chunks[i].id, r)
     results = [r for r in results if not isinstance(r, Exception)]
 
     all_entity_lists = [ents for ents, _ in results]
@@ -459,7 +465,7 @@ async def extract_entities_and_relations(
         "Extracted %d entities, %d relations from %d chunks",
         len(merged), len(all_relations), len(chunks),
     )
-    return merged, all_relations
+    return merged, all_relations, failed_chunks
 
 
 def _extract_json_object(raw: str) -> dict | None:

@@ -164,6 +164,7 @@ def _build_llm(temperature: float = 0) -> ChatOpenAI:
         api_key=settings.llm_api_key,
         base_url=settings.llm_base_url,
         temperature=temperature,
+        request_timeout=settings.llm_request_timeout,
     )
 
 
@@ -174,6 +175,7 @@ def _build_reasoning_llm(temperature: float = 0) -> ChatOpenAI:
         api_key=settings.reasoning_llm_api_key,
         base_url=settings.reasoning_llm_base_url,
         temperature=temperature,
+        request_timeout=settings.llm_request_timeout,
     )
 
 

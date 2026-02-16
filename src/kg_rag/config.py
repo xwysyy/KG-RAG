@@ -146,6 +146,9 @@ class Settings:
     file_concurrency: int = field(
         default_factory=lambda: _int_env("FILE_CONCURRENCY", 25)
     )
+    llm_request_timeout: int = field(
+        default_factory=lambda: _int_env("LLM_REQUEST_TIMEOUT", 600)
+    )
 
     # Paths
     data_dir: _LazyDir = field(

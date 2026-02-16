@@ -197,6 +197,7 @@ def create_graph_query(store: BaseGraphStore) -> BaseTool:
             api_key=settings.llm_api_key,
             base_url=settings.llm_base_url,
             temperature=0,
+            request_timeout=settings.llm_request_timeout,
         )
 
         prompt = CYPHER_GENERATION_PROMPT.format(

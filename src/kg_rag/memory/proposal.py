@@ -32,6 +32,7 @@ async def extract_proposals(
         api_key=settings.llm_api_key,
         base_url=settings.llm_base_url,
         temperature=0,
+        request_timeout=settings.llm_request_timeout,
     )
 
     prompt = PROFILE_EXTRACTION_PROMPT.format(conversation=conversation)
