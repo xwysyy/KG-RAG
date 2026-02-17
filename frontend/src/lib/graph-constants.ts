@@ -19,17 +19,6 @@ export const RELATION_TYPE_COLORS: Record<string, string> = {
   RELATED_TO: "#94a3b8",
 };
 
-/** Relation type → edge color with transparency for non-hover state */
-export const EDGE_COLORS: Record<string, string> = {
-  PREREQ: "rgba(244,63,94,0.35)",
-  IMPROVES: "rgba(16,185,129,0.35)",
-  APPLIES_TO: "rgba(99,102,241,0.35)",
-  BELONGS_TO: "rgba(168,85,247,0.35)",
-  VARIANT_OF: "rgba(245,158,11,0.35)",
-  USES: "rgba(6,182,212,0.35)",
-  RELATED_TO: "rgba(148,163,184,0.25)",
-};
-
 export const ENTITY_TYPES = [
   "Algorithm",
   "DataStructure",

@@ -31,17 +31,12 @@ logger = logging.getLogger(__name__)
 # Initialization helpers
 # ---------------------------------------------------------------------------
 
-async def _preflight_checks() -> None:
-    """Validate critical config before starting."""
-    errors: list[str] = []
-
-    if not settings.llm_api_key:
-        errors.append("LLM_API_KEY is not set")
-
-    # Test Neo4j connectivity
+async def _check_neo4j_connectivity() -> list[str]:
+    """Test Neo4j connectivity and return a list of errors (empty if OK)."""
     from neo4j import AsyncGraphDatabase
     from neo4j.exceptions import ServiceUnavailable, AuthError
 
+    errors: list[str] = []
     driver = AsyncGraphDatabase.driver(
         settings.neo4j_uri,
         auth=(settings.neo4j_username, settings.neo4j_password),
@@ -57,6 +52,17 @@ async def _preflight_checks() -> None:
         errors.append(f"Neo4j error: {e}")
     finally:
         await driver.close()
+    return errors
+
+
+async def _preflight_checks() -> None:
+    """Validate critical config before starting."""
+    errors: list[str] = []
+
+    if not settings.llm_api_key:
+        errors.append("LLM_API_KEY is not set")
+
+    errors.extend(await _check_neo4j_connectivity())
 
     if not settings.embedding_api_key:
         errors.append("EMBEDDING_API_KEY is not set")
@@ -97,26 +103,7 @@ async def _init_graph_only():
 
 async def _preflight_graph_only() -> None:
     """Validate Neo4j connectivity only (no LLM key required)."""
-    from neo4j import AsyncGraphDatabase
-    from neo4j.exceptions import ServiceUnavailable, AuthError
-
-    errors: list[str] = []
-    driver = AsyncGraphDatabase.driver(
-        settings.neo4j_uri,
-        auth=(settings.neo4j_username, settings.neo4j_password),
-    )
-    try:
-        async with driver.session(database=settings.neo4j_database) as session:
-            await (await session.run("RETURN 1")).consume()
-    except ServiceUnavailable:
-        errors.append(f"Cannot connect to Neo4j at {settings.neo4j_uri}")
-    except AuthError:
-        errors.append("Neo4j authentication failed (check NEO4J_USERNAME/NEO4J_PASSWORD)")
-    except Exception as e:
-        errors.append(f"Neo4j error: {e}")
-    finally:
-        await driver.close()
-
+    errors = await _check_neo4j_connectivity()
     if errors:
         for msg in errors:
             logger.error("Preflight check failed: %s", msg)
@@ -211,6 +198,51 @@ async def _chat(user_id: str = "default") -> None:
 
 
 # ---------------------------------------------------------------------------
+# Shared ingest helpers
+# ---------------------------------------------------------------------------
+
+async def _upsert_entities(entities, graph_store, sem):
+    async def _do(ent):
+        async with sem:
+            await graph_store.upsert_node(
+                ent.id,
+                {
+                    "label": ent.type,
+                    "name": ent.name,
+                    "description": ent.description,
+                    "aliases": ent.aliases,
+                },
+            )
+    results = await asyncio.gather(*(_do(ent) for ent in entities), return_exceptions=True)
+    return [r for r in results if isinstance(r, Exception)]
+
+
+async def _upsert_relations(relations, graph_store, sem):
+    from kg_rag.models import make_entity_id
+
+    async def _do(rel):
+        async with sem:
+            if rel.type not in KNOWLEDGE_REL_TYPES:
+                logger.warning(
+                    "LLM produced unknown relation type %r (%s->%s), "
+                    "storage layer will remap",
+                    rel.type, rel.source, rel.target,
+                )
+            src_id = make_entity_id(rel.source)
+            tgt_id = make_entity_id(rel.target)
+            await graph_store.upsert_edge(
+                src_id, tgt_id,
+                {
+                    "type": rel.type,
+                    "description": rel.description,
+                    "weight": rel.weight,
+                },
+            )
+    results = await asyncio.gather(*(_do(rel) for rel in relations), return_exceptions=True)
+    return [r for r in results if isinstance(r, Exception)]
+
+
+# ---------------------------------------------------------------------------
 # Ingest subcommand
 # ---------------------------------------------------------------------------
 
@@ -260,46 +292,12 @@ async def _ingest(file_path: str) -> None:
         # Upsert entities into graph store (concurrent)
         sem = asyncio.Semaphore(settings.storage_concurrency)
 
-        async def _upsert_node(ent):
-            async with sem:
-                await graph_store.upsert_node(
-                    ent.id,
-                    {
-                        "label": ent.type,
-                        "name": ent.name,
-                        "description": ent.description,
-                        "aliases": ent.aliases,
-                    },
-                )
-
-        results = await asyncio.gather(*(_upsert_node(ent) for ent in entities), return_exceptions=True)
-        node_errors = [r for r in results if isinstance(r, Exception)]
+        node_errors = await _upsert_entities(entities, graph_store, sem)
         if node_errors:
             logger.error("Failed to upsert %d/%d nodes", len(node_errors), len(entities))
 
         # Upsert relations into graph store (concurrent)
-        async def _upsert_edge(rel):
-            async with sem:
-                if rel.type not in KNOWLEDGE_REL_TYPES:
-                    logger.warning(
-                        "LLM produced unknown relation type %r (%s->%s), "
-                        "storage layer will remap",
-                        rel.type, rel.source, rel.target,
-                    )
-                src_id = make_entity_id(rel.source)
-                tgt_id = make_entity_id(rel.target)
-                await graph_store.upsert_edge(
-                    src_id,
-                    tgt_id,
-                    {
-                        "type": rel.type,
-                        "description": rel.description,
-                        "weight": rel.weight,
-                    },
-                )
-
-        results = await asyncio.gather(*(_upsert_edge(rel) for rel in relations), return_exceptions=True)
-        edge_errors = [r for r in results if isinstance(r, Exception)]
+        edge_errors = await _upsert_relations(relations, graph_store, sem)
         if edge_errors:
             logger.error("Failed to upsert %d/%d edges", len(edge_errors), len(relations))
 
@@ -386,22 +384,7 @@ async def _ingest_batch(dir_path: str) -> None:
                 logger.warning("%s: vector upsert failed: %s", path.name, e)
 
             # store entities (shared storage_sem)
-            async def _upsert_node(ent):
-                async with storage_sem:
-                    await graph_store.upsert_node(
-                        ent.id,
-                        {
-                            "label": ent.type,
-                            "name": ent.name,
-                            "description": ent.description,
-                            "aliases": ent.aliases,
-                        },
-                    )
-
-            results = await asyncio.gather(
-                *(_upsert_node(ent) for ent in entities), return_exceptions=True,
-            )
-            node_errors = [r for r in results if isinstance(r, Exception)]
+            node_errors = await _upsert_entities(entities, graph_store, storage_sem)
             if node_errors:
                 logger.error(
                     "%s: failed to upsert %d/%d nodes",
@@ -409,29 +392,7 @@ async def _ingest_batch(dir_path: str) -> None:
                 )
 
             # store relations (shared storage_sem)
-            async def _upsert_edge(rel):
-                async with storage_sem:
-                    if rel.type not in KNOWLEDGE_REL_TYPES:
-                        logger.warning(
-                            "LLM produced unknown relation type %r (%s->%s), "
-                            "storage layer will remap",
-                            rel.type, rel.source, rel.target,
-                        )
-                    src_id = make_entity_id(rel.source)
-                    tgt_id = make_entity_id(rel.target)
-                    await graph_store.upsert_edge(
-                        src_id, tgt_id,
-                        {
-                            "type": rel.type,
-                            "description": rel.description,
-                            "weight": rel.weight,
-                        },
-                    )
-
-            results = await asyncio.gather(
-                *(_upsert_edge(rel) for rel in relations), return_exceptions=True,
-            )
-            edge_errors = [r for r in results if isinstance(r, Exception)]
+            edge_errors = await _upsert_relations(relations, graph_store, storage_sem)
             if edge_errors:
                 logger.error(
                     "%s: failed to upsert %d/%d edges",

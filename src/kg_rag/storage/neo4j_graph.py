@@ -22,14 +22,7 @@ logger = logging.getLogger(__name__)
 
 _TRANSIENT = (TransientError, ServiceUnavailable)
 
-_retry_read = retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=10),
-    retry=retry_if_exception_type(_TRANSIENT),
-    reraise=True,
-)
-
-_retry_write = retry(
+_retry = retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=10),
     retry=retry_if_exception_type(_TRANSIENT),
@@ -91,7 +84,7 @@ class Neo4jGraphStore(BaseGraphStore):
 
     # -- node operations -----------------------------------------------------
 
-    @_retry_read
+    @_retry
     async def has_node(self, node_id: str) -> bool:
         async with self._session() as session:
             result = await session.run(
@@ -101,7 +94,7 @@ class Neo4jGraphStore(BaseGraphStore):
             record = await result.single()
             return bool(record and record["exists"])
 
-    @_retry_read
+    @_retry
     async def get_node(self, node_id: str) -> dict[str, Any] | None:
         async with self._session() as session:
             result = await session.run(
@@ -112,17 +105,16 @@ class Neo4jGraphStore(BaseGraphStore):
             return dict(record["props"]) if record else None
 
     _BASE_LABELS = {"Entity", "User"}
-    _ENTITY_TYPE_LABELS = ENTITY_TYPE_LABELS
 
     _ALLOWED_REL_TYPES = KNOWLEDGE_REL_TYPES | PROFILE_REL_TYPES
 
-    @_retry_write
+    @_retry
     async def upsert_node(self, node_id: str, node_data: dict[str, Any]) -> None:
         data = dict(node_data)  # avoid mutating caller's dict
         label = data.pop("label", "Entity")
         props = {**data, "entity_id": node_id}
 
-        if label in self._ENTITY_TYPE_LABELS:
+        if label in ENTITY_TYPE_LABELS:
             # Known entity type: MERGE on :Entity, then add type label
             props.setdefault("type", label)
             cypher = (
@@ -154,7 +146,7 @@ class Neo4jGraphStore(BaseGraphStore):
             result = await session.run(cypher, eid=node_id, props=props)
             await result.consume()
 
-    @_retry_write
+    @_retry
     async def delete_node(self, node_id: str) -> None:
         async with self._session() as session:
             result = await session.run(
@@ -165,7 +157,7 @@ class Neo4jGraphStore(BaseGraphStore):
 
     # -- edge operations -----------------------------------------------------
 
-    @_retry_read
+    @_retry
     async def has_edge(self, source: str, target: str) -> bool:
         async with self._session() as session:
             result = await session.run(
@@ -177,7 +169,7 @@ class Neo4jGraphStore(BaseGraphStore):
             record = await result.single()
             return bool(record and record["exists"])
 
-    @_retry_read
+    @_retry
     async def get_edge(self, source: str, target: str) -> dict[str, Any] | None:
         async with self._session() as session:
             result = await session.run(
@@ -193,7 +185,7 @@ class Neo4jGraphStore(BaseGraphStore):
             props["type"] = record["rel_type"]
             return props
 
-    @_retry_write
+    @_retry
     async def upsert_edge(
         self, source: str, target: str, edge_data: dict[str, Any]
     ) -> None:
@@ -222,7 +214,7 @@ class Neo4jGraphStore(BaseGraphStore):
 
     # -- cypher query --------------------------------------------------------
 
-    @_retry_read
+    @_retry
     async def query_cypher(
         self, cypher: str, params: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:

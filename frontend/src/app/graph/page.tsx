@@ -3,17 +3,18 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
-import { getUser, clearAuth, isAuthenticated } from "@/lib/auth";
+import { clearAuth } from "@/lib/auth";
 import { graphApi } from "@/lib/graph-api";
 import type { GraphNode, GraphOverview } from "@/lib/graph-api";
 import type { GraphViewerHandle } from "@/app/components/graph/GraphViewer";
 import { Button } from "@/components/ui/button";
-import { MessagesSquare, LogOut, Sun, Moon, Bot, Network, Loader2 } from "lucide-react";
+import { MessagesSquare, LogOut, Bot, Network, Loader2 } from "lucide-react";
 import { useGraphStats } from "@/app/hooks/useGraphData";
 import GraphToolbar from "@/app/components/graph/GraphToolbar";
 import GraphSearch from "@/app/components/graph/GraphSearch";
 import GraphNodePanel from "@/app/components/graph/GraphNodePanel";
+import { ThemeToggle } from "@/app/components/ThemeToggle";
+import { useAuthGuard } from "@/app/hooks/useAuthGuard";
 
 const GraphViewer = dynamic(
   () => import("@/app/components/graph/GraphViewer"),
@@ -22,27 +23,9 @@ const GraphViewer = dynamic(
 import GraphLegend from "@/app/components/graph/GraphLegend";
 import GraphStatsBar from "@/app/components/graph/GraphStatsBar";
 
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return <div className="h-8 w-8" />;
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-      aria-label="Toggle theme"
-    >
-      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </Button>
-  );
-}
-
 export default function GraphPage() {
   const router = useRouter();
-  const [username, setUsername] = useState<string | null>(null);
+  const username = useAuthGuard();
 
   const [graphData, setGraphData] = useState<GraphOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,32 +39,30 @@ export default function GraphPage() {
   const graphViewerRef = useRef<GraphViewerHandle>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Auth check
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      router.push("/auth");
-      return;
-    }
-    const user = getUser();
-    setUsername(user?.username ?? "User");
-  }, [router]);
+  const loadGraphData = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    return graphApi
+      .getOverview({ entity_type: filterType, limit: 50 })
+      .then((data) => ({ data }))
+      .catch((err) => ({ error: err.message as string }));
+  }, [filterType]);
 
   // Load graph data
   useEffect(() => {
     if (!username) return;
-    setLoading(true);
-    setError(null);
-    graphApi
-      .getOverview({ entity_type: filterType, limit: 50 })
-      .then((data) => {
-        setGraphData(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, [username, filterType]);
+    let cancelled = false;
+    loadGraphData().then((result) => {
+      if (cancelled) return;
+      if ("error" in result) {
+        setError(result.error);
+      } else {
+        setGraphData(result.data);
+      }
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [username, loadGraphData]);
 
   const handleLogout = useCallback(() => {
     clearAuth();
@@ -244,18 +225,14 @@ export default function GraphPage() {
                 size="sm"
                 className="mt-3"
                 onClick={() => {
-                  setError(null);
-                  setLoading(true);
-                  graphApi
-                    .getOverview({ entity_type: filterType, limit: 50 })
-                    .then((data) => {
-                      setGraphData(data);
-                      setLoading(false);
-                    })
-                    .catch((err) => {
-                      setError(err.message);
-                      setLoading(false);
-                    });
+                  loadGraphData().then((result) => {
+                    if ("error" in result) {
+                      setError(result.error);
+                    } else {
+                      setGraphData(result.data);
+                    }
+                    setLoading(false);
+                  });
                 }}
               >
                 Retry

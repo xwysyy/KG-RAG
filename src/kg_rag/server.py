@@ -11,7 +11,6 @@ import concurrent.futures
 import logging
 
 from kg_rag.agent.graph import build_agent_graph
-from kg_rag.config import settings
 
 logger = logging.getLogger(__name__)
 

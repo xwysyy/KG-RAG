@@ -178,6 +178,14 @@ To find an entity by any name variant (including abbreviations like "BFS" or Chi
 def create_graph_query(store: BaseGraphStore) -> BaseTool:
     """Factory: create a graph_query tool bound to *store* via closure."""
 
+    llm = ChatOpenAI(
+        model=settings.llm_model,
+        api_key=settings.llm_api_key,
+        base_url=settings.llm_base_url,
+        temperature=0,
+        request_timeout=settings.llm_request_timeout,
+    )
+
     @tool
     async def graph_query(question: str) -> str:
         """Query the algorithm knowledge graph using natural language.
@@ -191,15 +199,6 @@ def create_graph_query(store: BaseGraphStore) -> BaseTool:
         Returns:
             Formatted query results or an error message.
         """
-        # Step 1: LLM generates Cypher from natural language
-        llm = ChatOpenAI(
-            model=settings.llm_model,
-            api_key=settings.llm_api_key,
-            base_url=settings.llm_base_url,
-            temperature=0,
-            request_timeout=settings.llm_request_timeout,
-        )
-
         prompt = CYPHER_GENERATION_PROMPT.format(
             schema=_GRAPH_SCHEMA, question=question
         )

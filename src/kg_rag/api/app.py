@@ -84,6 +84,27 @@ def _session_summary_response(record: SessionSummaryRecord) -> SessionSummaryRes
     )
 
 
+def _build_node_response(r: dict) -> GraphNodeResponse:
+    return GraphNodeResponse(
+        id=r["id"],
+        label=r["label"] or r["id"][:8],
+        type=r["type"],
+        description=r["description"],
+        aliases=r["aliases"] if isinstance(r["aliases"], list) else [],
+    )
+
+
+def _build_edge_response(r: dict) -> GraphEdgeResponse:
+    return GraphEdgeResponse(
+        id=f"{r['source']}-{r['type']}-{r['target']}",
+        source=r["source"],
+        target=r["target"],
+        type=r["type"],
+        description=r["description"],
+        weight=r["weight"],
+    )
+
+
 @dataclass
 class AppRuntime:
     chat_service: ChatService
@@ -100,6 +121,17 @@ def _runtime_from_request(request: Request) -> AppRuntime:
             detail="service is still starting",
         )
     return runtime
+
+
+async def _get_session_or_403(
+    session_store: SqliteSessionStore, session_id: str, user_id: str
+) -> SessionRecord:
+    session = await session_store.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
+    if session.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="session access denied")
+    return session
 
 
 def create_app() -> FastAPI:
@@ -251,11 +283,7 @@ def create_app() -> FastAPI:
         user_id: str = Depends(get_current_user_id),
     ) -> SessionResponse:
         runtime = _runtime_from_request(request)
-        session = await runtime.session_store.get_session(session_id)
-        if session is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
-        if session.user_id != user_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="session access denied")
+        session = await _get_session_or_403(runtime.session_store, session_id, user_id)
         return _session_response(session)
 
     @app.delete("/api/v1/sessions/{session_id}")
@@ -282,11 +310,7 @@ def create_app() -> FastAPI:
         offset: int = Query(default=0, ge=0),
     ) -> SessionMessagesResponse:
         runtime = _runtime_from_request(request)
-        session = await runtime.session_store.get_session(session_id)
-        if session is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
-        if session.user_id != user_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="session access denied")
+        session = await _get_session_or_403(runtime.session_store, session_id, user_id)
 
         messages = await runtime.session_store.list_messages(
             session_id,
@@ -310,11 +334,7 @@ def create_app() -> FastAPI:
         user_id: str = Depends(get_current_user_id),
     ) -> ChatTurnResponse:
         runtime = _runtime_from_request(request)
-        session = await runtime.session_store.get_session(session_id)
-        if session is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
-        if session.user_id != user_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="session access denied")
+        await _get_session_or_403(runtime.session_store, session_id, user_id)
 
         try:
             result = await runtime.chat_service.ask(
@@ -355,11 +375,7 @@ def create_app() -> FastAPI:
         user_id: str = Depends(get_current_user_id),
     ) -> StreamingResponse:
         runtime = _runtime_from_request(request)
-        session = await runtime.session_store.get_session(session_id)
-        if session is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
-        if session.user_id != user_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="session access denied")
+        await _get_session_or_403(runtime.session_store, session_id, user_id)
 
         async def event_generator():
             try:
@@ -389,7 +405,6 @@ def create_app() -> FastAPI:
 
     # --- Graph visualization endpoints (read-only) ---
 
-    _VALID_ENTITY_TYPES = frozenset(ENTITY_TYPE_LABELS)
 
     @app.get("/api/v1/graph/stats", response_model=GraphStatsResponse)
     async def graph_stats(
@@ -428,10 +443,10 @@ def create_app() -> FastAPI:
         runtime = _runtime_from_request(request)
         gs = runtime.graph_store
 
-        if entity_type and entity_type not in _VALID_ENTITY_TYPES:
+        if entity_type and entity_type not in ENTITY_TYPE_LABELS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid entity_type. Must be one of: {sorted(_VALID_ENTITY_TYPES)}",
+                detail=f"Invalid entity_type. Must be one of: {sorted(ENTITY_TYPE_LABELS)}",
             )
 
         if entity_type:
@@ -463,16 +478,7 @@ def create_app() -> FastAPI:
         node_ids = {r["id"] for r in node_rows}
         is_truncated = len(node_rows) >= limit
 
-        nodes = [
-            GraphNodeResponse(
-                id=r["id"],
-                label=r["label"] or r["id"][:8],
-                type=r["type"],
-                description=r["description"],
-                aliases=r["aliases"] if isinstance(r["aliases"], list) else [],
-            )
-            for r in node_rows
-        ]
+        nodes = [_build_node_response(r) for r in node_rows]
 
         if node_ids:
             edge_rows = await gs.query_cypher(
@@ -483,17 +489,7 @@ def create_app() -> FastAPI:
                 "coalesce(r.weight, 1.0) AS weight",
                 {"ids": list(node_ids)},
             )
-            edges = [
-                GraphEdgeResponse(
-                    id=f"{r['source']}-{r['type']}-{r['target']}",
-                    source=r["source"],
-                    target=r["target"],
-                    type=r["type"],
-                    description=r["description"],
-                    weight=r["weight"],
-                )
-                for r in edge_rows
-            ]
+            edges = [_build_edge_response(r) for r in edge_rows]
         else:
             edges = []
 
@@ -510,10 +506,10 @@ def create_app() -> FastAPI:
         runtime = _runtime_from_request(request)
         gs = runtime.graph_store
 
-        if entity_type and entity_type not in _VALID_ENTITY_TYPES:
+        if entity_type and entity_type not in ENTITY_TYPE_LABELS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid entity_type. Must be one of: {sorted(_VALID_ENTITY_TYPES)}",
+                detail=f"Invalid entity_type. Must be one of: {sorted(ENTITY_TYPE_LABELS)}",
             )
 
         type_filter = f":{entity_type}" if entity_type else ":Entity"
@@ -528,16 +524,7 @@ def create_app() -> FastAPI:
             "LIMIT $limit"
         )
         rows = await gs.query_cypher(cypher, {"q": q, "limit": limit})
-        return [
-            GraphNodeResponse(
-                id=r["id"],
-                label=r["label"] or r["id"][:8],
-                type=r["type"],
-                description=r["description"],
-                aliases=r["aliases"] if isinstance(r["aliases"], list) else [],
-            )
-            for r in rows
-        ]
+        return [_build_node_response(r) for r in rows]
 
     @app.get("/api/v1/graph/entities/{entity_id}/neighbors", response_model=GraphOverviewResponse)
     async def graph_entity_neighbors(
@@ -573,16 +560,7 @@ def create_app() -> FastAPI:
 
         all_rows = center + neighbor_rows
         node_ids = {r["id"] for r in all_rows}
-        nodes = [
-            GraphNodeResponse(
-                id=r["id"],
-                label=r["label"] or r["id"][:8],
-                type=r["type"],
-                description=r["description"],
-                aliases=r["aliases"] if isinstance(r["aliases"], list) else [],
-            )
-            for r in all_rows
-        ]
+        nodes = [_build_node_response(r) for r in all_rows]
 
         edge_rows = await gs.query_cypher(
             "MATCH (a:Entity)-[r]->(b:Entity) "
@@ -592,17 +570,7 @@ def create_app() -> FastAPI:
             "coalesce(r.weight, 1.0) AS weight",
             {"ids": list(node_ids)},
         )
-        edges = [
-            GraphEdgeResponse(
-                id=f"{r['source']}-{r['type']}-{r['target']}",
-                source=r["source"],
-                target=r["target"],
-                type=r["type"],
-                description=r["description"],
-                weight=r["weight"],
-            )
-            for r in edge_rows
-        ]
+        edges = [_build_edge_response(r) for r in edge_rows]
 
         return GraphOverviewResponse(
             nodes=nodes,

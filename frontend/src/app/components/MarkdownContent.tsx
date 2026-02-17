@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React from "react";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -220,7 +220,7 @@ export const MarkdownContent = React.memo<MarkdownContentProps>(
 
     const { resolvedTheme } = useTheme();
     const theme = resolvedTheme === "dark" ? "dark" : "light";
-    const value = useMemo(() => content ?? "", [content]);
+    const value = content ?? "";
 
     return (
       <div

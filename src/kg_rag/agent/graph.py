@@ -257,62 +257,62 @@ async def _stream_reasoning_chat(
     """Stream assistant text and reasoning text for arbitrary chat messages."""
     from openai import AsyncOpenAI
 
-    client = AsyncOpenAI(
+    async with AsyncOpenAI(
         api_key=settings.reasoning_llm_api_key,
         base_url=settings.reasoning_llm_base_url,
-    )
-    stream = await client.chat.completions.create(
-        model=settings.reasoning_llm_model,
-        messages=list(messages),
-        stream=True,
-    )
+    ) as client:
+        stream = await client.chat.completions.create(
+            model=settings.reasoning_llm_model,
+            messages=list(messages),
+            stream=True,
+        )
 
-    answer_parts: list[str] = []
-    reasoning_parts: list[str] = []
+        answer_parts: list[str] = []
+        reasoning_parts: list[str] = []
 
-    async for chunk in stream:
-        choices = getattr(chunk, "choices", None) or []
-        if not choices:
-            continue
-        delta = getattr(choices[0], "delta", None)
-        if delta is None:
-            continue
+        async for chunk in stream:
+            choices = getattr(chunk, "choices", None) or []
+            if not choices:
+                continue
+            delta = getattr(choices[0], "delta", None)
+            if delta is None:
+                continue
 
-        reasoning_piece = getattr(delta, "reasoning_content", None)
-        if reasoning_piece is None and isinstance(delta, dict):
-            reasoning_piece = delta.get("reasoning_content")
-        if reasoning_piece:
-            reasoning_delta = _collect_stream_text(reasoning_piece)
-            if reasoning_delta:
-                reasoning_parts.append(reasoning_delta)
-                if reasoning_scope:
-                    _emit_stream_event(
-                        writer,
-                        {
-                            "type": "reasoning_delta",
-                            "scope": reasoning_scope,
-                            "delta": reasoning_delta,
-                        },
-                    )
+            reasoning_piece = getattr(delta, "reasoning_content", None)
+            if reasoning_piece is None and isinstance(delta, dict):
+                reasoning_piece = delta.get("reasoning_content")
+            if reasoning_piece:
+                reasoning_delta = _collect_stream_text(reasoning_piece)
+                if reasoning_delta:
+                    reasoning_parts.append(reasoning_delta)
+                    if reasoning_scope:
+                        _emit_stream_event(
+                            writer,
+                            {
+                                "type": "reasoning_delta",
+                                "scope": reasoning_scope,
+                                "delta": reasoning_delta,
+                            },
+                        )
 
-        content_piece = getattr(delta, "content", None)
-        if content_piece is None and isinstance(delta, dict):
-            content_piece = delta.get("content")
-        if content_piece:
-            content_delta = _collect_stream_text(content_piece)
-            if content_delta:
-                answer_parts.append(content_delta)
-                if content_scope:
-                    _emit_stream_event(
-                        writer,
-                        {
-                            "type": "content_delta",
-                            "scope": content_scope,
-                            "delta": content_delta,
-                        },
-                    )
+            content_piece = getattr(delta, "content", None)
+            if content_piece is None and isinstance(delta, dict):
+                content_piece = delta.get("content")
+            if content_piece:
+                content_delta = _collect_stream_text(content_piece)
+                if content_delta:
+                    answer_parts.append(content_delta)
+                    if content_scope:
+                        _emit_stream_event(
+                            writer,
+                            {
+                                "type": "content_delta",
+                                "scope": content_scope,
+                                "delta": content_delta,
+                            },
+                        )
 
-    return "".join(answer_parts).strip(), "".join(reasoning_parts).strip()
+        return "".join(answer_parts).strip(), "".join(reasoning_parts).strip()
 
 
 # ===================================================================
@@ -491,8 +491,6 @@ async def _run_react_loop(
     The internal LLM conversation remains plain text — only the messages
     written to the graph state are "translated" into the structured format.
     """
-    from langchain_core.messages import BaseMessage
-
     tool_map = {t.name: t for t in tools}
     writer = _resolve_stream_writer(writer)
 

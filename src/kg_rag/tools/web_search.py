@@ -10,6 +10,17 @@ from kg_rag.config import settings
 
 logger = logging.getLogger(__name__)
 
+_client: "AsyncFirecrawl | None" = None  # noqa: F821
+
+
+def _get_client() -> "AsyncFirecrawl":  # noqa: F821
+    from firecrawl import AsyncFirecrawl
+
+    global _client
+    if _client is None:
+        _client = AsyncFirecrawl(api_key=settings.firecrawl_api_key)
+    return _client
+
 
 @tool
 async def web_search(query: str) -> str:
@@ -27,9 +38,7 @@ async def web_search(query: str) -> str:
     if not settings.firecrawl_api_key:
         return "Web search is not configured (missing FIRECRAWL_API_KEY)."
 
-    from firecrawl import AsyncFirecrawl
-
-    client = AsyncFirecrawl(api_key=settings.firecrawl_api_key)
+    client = _get_client()
 
     try:
         results = await client.search(query, limit=5)

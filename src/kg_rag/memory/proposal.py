@@ -21,19 +21,28 @@ from kg_rag.utils import strip_code_fences
 
 logger = logging.getLogger(__name__)
 
+_llm: ChatOpenAI | None = None
+
+
+def _get_llm() -> ChatOpenAI:
+    global _llm
+    if _llm is None:
+        _llm = ChatOpenAI(
+            model=settings.llm_model,
+            api_key=settings.llm_api_key,
+            base_url=settings.llm_base_url,
+            temperature=0,
+            request_timeout=settings.llm_request_timeout,
+        )
+    return _llm
+
 
 async def extract_proposals(
     conversation: str, user_id: str
 ) -> list[UserProfileUpdate]:
     """Use LLM to extract profile change proposals from a conversation."""
 
-    llm = ChatOpenAI(
-        model=settings.llm_model,
-        api_key=settings.llm_api_key,
-        base_url=settings.llm_base_url,
-        temperature=0,
-        request_timeout=settings.llm_request_timeout,
-    )
+    llm = _get_llm()
 
     prompt = PROFILE_EXTRACTION_PROMPT.format(conversation=conversation)
     response = await llm.ainvoke([HumanMessage(content=prompt)])

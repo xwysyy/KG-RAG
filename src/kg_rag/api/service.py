@@ -44,6 +44,16 @@ ProposalApplier = Callable[[list[Any], Any], Awaitable[int]]
 
 
 @dataclass(frozen=True)
+class _TurnContext:
+    clean_question: str
+    user_message: MessageRecord
+    history_rounds: list[tuple[str, str]]
+    history_messages: list
+    profile: str
+    agent_state: dict[str, Any]
+
+
+@dataclass(frozen=True)
 class TurnResult:
     session: SessionRecord
     user_message: MessageRecord
@@ -83,7 +93,9 @@ class ChatService:
         self._proposal_filter = proposal_filter
         self._proposal_applier = proposal_applier
 
-    async def ask(self, session_id: str, user_id: str, question: str) -> TurnResult:
+    async def _prepare_turn(
+        self, session_id: str, user_id: str, question: str
+    ) -> _TurnContext:
         clean_question = question.strip()
         if not clean_question:
             raise ValueError("question cannot be empty")
@@ -112,17 +124,29 @@ class ChatService:
         history_messages.append(HumanMessage(content=clean_question))
 
         profile = await self._profile_reader(user_id, self._graph_store)
-        result = await self._agent.ainvoke(
-            {
-                "messages": history_messages,
-                "todos": [],
-                "user_profile": profile,
-                "iteration": 0,
-                "max_iterations": settings.max_iterations,
-                "intermediate_results": [],
-                "final_answer": "",
-            }
+
+        agent_state = {
+            "messages": history_messages,
+            "todos": [],
+            "user_profile": profile,
+            "iteration": 0,
+            "max_iterations": settings.max_iterations,
+            "intermediate_results": [],
+            "final_answer": "",
+        }
+
+        return _TurnContext(
+            clean_question=clean_question,
+            user_message=user_message,
+            history_rounds=history_rounds,
+            history_messages=history_messages,
+            profile=profile,
+            agent_state=agent_state,
         )
+
+    async def ask(self, session_id: str, user_id: str, question: str) -> TurnResult:
+        ctx = await self._prepare_turn(session_id, user_id, question)
+        result = await self._agent.ainvoke(ctx.agent_state)
 
         answer = str(result.get("final_answer", "")).strip()
         if not answer:
@@ -136,7 +160,7 @@ class ChatService:
 
         await self._update_profile_from_turn(
             user_id=user_id,
-            question=clean_question,
+            question=ctx.clean_question,
             answer=answer,
         )
 
@@ -160,39 +184,20 @@ class ChatService:
 
         return TurnResult(
             session=latest_session,
-            user_message=user_message,
+            user_message=ctx.user_message,
             assistant_message=assistant_message,
             final_answer=answer,
             iteration=iteration,
             todos=todos,
             intermediate_results=[str(item) for item in intermediate],
-            history_rounds_used=len(history_rounds),
+            history_rounds_used=len(ctx.history_rounds),
         )
 
     async def ask_stream(
         self, session_id: str, user_id: str, question: str
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Streaming variant of ``ask()`` — yields SSE-ready event dicts."""
-        clean_question = question.strip()
-        if not clean_question:
-            raise ValueError("question cannot be empty")
-
-        session = await self._session_store.get_session(session_id)
-        if session is None:
-            raise KeyError(f"session {session_id} not found")
-        if session.user_id != user_id:
-            raise PermissionError("session does not belong to current user")
-
-        history_rounds = await self._session_store.get_recent_rounds(
-            session_id,
-            max_rounds=self._history_rounds,
-        )
-
-        user_message = await self._session_store.append_message(
-            session_id,
-            role="user",
-            content=clean_question,
-        )
+        ctx = await self._prepare_turn(session_id, user_id, question)
 
         # Yield metadata event
         yield {
@@ -200,36 +205,19 @@ class ChatService:
             "data": {
                 "session_id": session_id,
                 "user_message": {
-                    "message_id": user_message.message_id,
-                    "session_id": user_message.session_id,
-                    "role": user_message.role,
-                    "content": user_message.content,
-                    "created_at": user_message.created_at,
+                    "message_id": ctx.user_message.message_id,
+                    "session_id": ctx.user_message.session_id,
+                    "role": ctx.user_message.role,
+                    "content": ctx.user_message.content,
+                    "created_at": ctx.user_message.created_at,
                 },
             },
-        }
-
-        history_messages = []
-        for user_text, assistant_text in history_rounds:
-            history_messages.append(HumanMessage(content=user_text))
-            history_messages.append(AIMessage(content=assistant_text))
-        history_messages.append(HumanMessage(content=clean_question))
-
-        profile = await self._profile_reader(user_id, self._graph_store)
-        state = {
-            "messages": history_messages,
-            "todos": [],
-            "user_profile": profile,
-            "iteration": 0,
-            "max_iterations": settings.max_iterations,
-            "intermediate_results": [],
-            "final_answer": "",
         }
 
         # Stream execution
         final_state = None
         async for mode, chunk in self._agent.astream(
-            state,
+            ctx.agent_state,
             stream_mode=["values", "custom"],
             config={"recursion_limit": 100},
         ):
@@ -249,7 +237,7 @@ class ChatService:
 
         # Persist assistant message
         if final_state is None:
-            final_state = state
+            final_state = ctx.agent_state
 
         answer = str(final_state.get("final_answer", "")).strip()
         if not answer or answer == "__READY__":
@@ -278,7 +266,7 @@ class ChatService:
 
         await self._update_profile_from_turn(
             user_id=user_id,
-            question=clean_question,
+            question=ctx.clean_question,
             answer=answer,
         )
 

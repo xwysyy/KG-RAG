@@ -1,7 +1,4 @@
-function getApiUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8765";
-  return raw.replace(/\/+$/, "");
-}
+import { getApiUrl } from "@/lib/fetch-utils";
 
 interface AuthResponse {
   user_id: string;

@@ -292,36 +292,34 @@ export const ChatInterface = React.memo(() => {
     liveReviewContent,
   ]);
 
-  const submitDisabled = isLoading;
-
   const handleSubmit = useCallback(
     (e?: FormEvent) => {
       if (e) e.preventDefault();
       const messageText = input.trim();
-      if (!messageText || isLoading || submitDisabled) return;
+      if (!messageText || isLoading) return;
       sendMessage(messageText);
       setInput("");
     },
-    [input, isLoading, sendMessage, submitDisabled]
+    [input, isLoading, sendMessage]
   );
 
   const handleSuggestionSend = useCallback(
     (text: string) => {
-      if (isLoading || submitDisabled) return;
+      if (isLoading) return;
       sendMessage(text);
     },
-    [isLoading, sendMessage, submitDisabled]
+    [isLoading, sendMessage]
   );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (submitDisabled) return;
+      if (isLoading) return;
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSubmit();
       }
     },
-    [handleSubmit, submitDisabled]
+    [handleSubmit, isLoading]
   );
 
   // Build displayed messages
@@ -359,11 +357,11 @@ export const ChatInterface = React.memo(() => {
     return stripped || null;
   }, [isLoading, liveReviewContent]);
 
-  const groupedTodos = {
+  const groupedTodos = useMemo(() => ({
     in_progress: todosWithLiveStatus.filter((t) => t.status === "in_progress"),
     pending: todosWithLiveStatus.filter((t) => t.status === "pending"),
     completed: todosWithLiveStatus.filter((t) => t.status === "completed"),
-  };
+  }), [todosWithLiveStatus]);
 
   const hasTasks = todosWithLiveStatus.length > 0;
   const hasMessages = messages.length > 0;
@@ -637,7 +635,7 @@ export const ChatInterface = React.memo(() => {
               ) : (
                 <button
                   type="submit"
-                  disabled={submitDisabled || !input.trim()}
+                  disabled={isLoading || !input.trim()}
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-[#49b1f5] to-[#62bfff] dark:from-[#2080c0] dark:to-[#3090d0] text-white transition-all hover:from-[#1892ff] hover:to-[#49b1f5] hover:shadow-md disabled:opacity-40 disabled:hover:shadow-none"
                 >
                   <ArrowUp size={16} />

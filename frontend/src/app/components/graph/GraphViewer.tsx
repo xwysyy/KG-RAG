@@ -193,7 +193,7 @@ const GraphViewer = forwardRef<GraphViewerHandle, GraphViewerProps>(
       const node = graphData.nodes.find((n) => n.id === focusNodeId);
       if (!node || node.x == null) return;
       const distance = 120;
-      const distRatio = 1 + distance / Math.hypot(node.x!, node.y!, node.z!);
+      const distRatio = 1 + distance / Math.max(Math.hypot(node.x!, node.y!, node.z!), 1);
       fgRef.current.cameraPosition(
         {
           x: node.x! * distRatio,
@@ -212,7 +212,7 @@ const GraphViewer = forwardRef<GraphViewerHandle, GraphViewerProps>(
         if (!node || node.x == null || !fgRef.current) return;
         const distance = 120;
         const distRatio =
-          1 + distance / Math.hypot(node.x!, node.y!, node.z!);
+          1 + distance / Math.max(Math.hypot(node.x!, node.y!, node.z!), 1);
         fgRef.current.cameraPosition(
           {
             x: node.x! * distRatio,

@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, { useState, useCallback, Suspense } from "react";
 import { useQueryState } from "nuqs";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
-import { getUser, clearAuth, isAuthenticated } from "@/lib/auth";
+import { clearAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { MessagesSquare, LogOut, Sun, Moon, Bot, Network } from "lucide-react";
+import { MessagesSquare, LogOut, Bot, Network } from "lucide-react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -15,33 +14,8 @@ import {
 import { SessionList } from "@/app/components/SessionList";
 import { ChatProvider } from "@/providers/ChatProvider";
 import { ChatInterface } from "@/app/components/ChatInterface";
-
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted) {
-    return <div className="h-8 w-8" />;
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-      aria-label="Toggle theme"
-    >
-      {theme === "dark" ? (
-        <Sun className="h-4 w-4" />
-      ) : (
-        <Moon className="h-4 w-4" />
-      )}
-    </Button>
-  );
-}
+import { ThemeToggle } from "@/app/components/ThemeToggle";
+import { useAuthGuard } from "@/app/hooks/useAuthGuard";
 
 function HomePageInner({ username }: { username: string }) {
   const router = useRouter();
@@ -145,17 +119,7 @@ function HomePageInner({ username }: { username: string }) {
 }
 
 function HomePageContent() {
-  const router = useRouter();
-  const [username, setUsername] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      router.push("/auth");
-      return;
-    }
-    const user = getUser();
-    setUsername(user?.username ?? "User");
-  }, [router]);
+  const username = useAuthGuard();
 
   if (!username) {
     return (
